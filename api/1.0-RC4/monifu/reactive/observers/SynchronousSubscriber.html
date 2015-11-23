@@ -1,15 +1,9 @@
 <!DOCTYPE html >
 <html>
         <head>
-<<<<<<< HEAD:api/1.0-RC4/monifu/reactive/observers/SynchronousSubscriber.html
           <title>SynchronousSubscriber - Monifu 1.0-SNAPSHOT - monifu.reactive.observers.SynchronousSubscriber</title>
           <meta name="description" content="SynchronousSubscriber - Monifu 1.0 - SNAPSHOT - monifu.reactive.observers.SynchronousSubscriber" />
           <meta name="keywords" content="SynchronousSubscriber Monifu 1.0 SNAPSHOT monifu.reactive.observers.SynchronousSubscriber" />
-=======
-          <title>SynchronousBufferedSubscriber - Monifu 1.0-RC2 - monifu.reactive.observers.SynchronousBufferedSubscriber</title>
-          <meta name="description" content="SynchronousBufferedSubscriber - Monifu 1.0 - RC2 - monifu.reactive.observers.SynchronousBufferedSubscriber" />
-          <meta name="keywords" content="SynchronousBufferedSubscriber Monifu 1.0 RC2 monifu.reactive.observers.SynchronousBufferedSubscriber" />
->>>>>>> ac82717e73ca1473a31fa805c4c2a4e33e1ac8a3:api/current/monifu/reactive/observers/SynchronousBufferedSubscriber.html
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/template.css" media="screen" type="text/css" rel="stylesheet" />
@@ -57,26 +51,11 @@
       </span>
       </h4>
       
-<<<<<<< HEAD:api/1.0-RC4/monifu/reactive/observers/SynchronousSubscriber.html
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>A <code>SynchronousSubscriber</code> is a <a href="../Subscriber.html" class="extype" name="monifu.reactive.Subscriber">Subscriber</a> whose <code>onNext</code> signal
 is synchronous (i.e. the upstream observable doesn't need to
 wait on a <code>Future</code> in order to decide whether to send the next event
 or not).
 </p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/monifu/monifu/tree/v1.0-SNAPSHOT/monifu/jvm/../shared/src/main/scala/monifu/reactive/observers/SynchronousSubscriber.scala" target="_blank">SynchronousSubscriber.scala</a></dd></dl><div class="toggleContainer block">
-=======
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>A highly optimized <a href="BufferedSubscriber.html" class="extype" name="monifu.reactive.observers.BufferedSubscriber">BufferedSubscriber</a> implementation. It supports 2
-<a href="../OverflowStrategy.html" class="extype" name="monifu.reactive.OverflowStrategy">buffer policies</a> - unbounded or bounded and terminated
-with a <a href="../exceptions/BufferOverflowException.html" class="extype" name="monifu.reactive.exceptions.BufferOverflowException">BufferOverflowException</a>.</p><p>To create an instance using an unbounded overflowStrategy: </p><pre><span class="cmt">// by default, the constructor for BufferedSubscriber is returning this unbounded variant</span>
-BufferedSubscriber(observer)
-
-<span class="cmt">// or you can specify the Unbounded overflowStrategy explicitly</span>
-<span class="kw">import</span> monifu.reactive.OverflowStrategy.Unbounded
-<span class="kw">val</span> buffered = BufferedSubscriber(observer, overflowStrategy = Unbounded)</pre><p>To create a bounded buffered observable that triggers
-<a href="../exceptions/BufferOverflowException.html" class="extype" name="monifu.reactive.exceptions.BufferOverflowException">BufferOverflowException</a>
-when over capacity: </p><pre><span class="kw">import</span> monifu.reactive.OverflowStrategy.OverflowTriggering
-<span class="cmt">// triggers buffer overflow error after 10000 messages</span>
-<span class="kw">val</span> buffered = BufferedSubscriber(observer, overflowStrategy = OverflowTriggering(bufferSize = <span class="num">10000</span>))</pre></div><dl class="attributes block"> <dt>Self Type</dt><dd><a href="" class="extype" name="monifu.reactive.observers.SynchronousBufferedSubscriber">SynchronousBufferedSubscriber</a>[<span class="extype" name="monifu.reactive.observers.SynchronousBufferedSubscriber.T">T</span>]</dd><dt>Source</dt><dd><a href="https://github.com/monifu/monifu/tree/v1.0-RC2/monifu/jvm/../shared/src/main/scala/monifu/reactive/observers/SynchronousBufferedSubscriber.scala" target="_blank">SynchronousBufferedSubscriber.scala</a></dd></dl><div class="toggleContainer block">
->>>>>>> ac82717e73ca1473a31fa805c4c2a4e33e1ac8a3:api/current/monifu/reactive/observers/SynchronousBufferedSubscriber.html
           <span class="toggle">Linear Supertypes</span>
           <div class="superTypes hiddenContent"><a href="SynchronousObserver.html" class="extype" name="monifu.reactive.observers.SynchronousObserver">SynchronousObserver</a>[<span class="extype" name="monifu.reactive.observers.SynchronousSubscriber.T">T</span>], <a href="../Subscriber.html" class="extype" name="monifu.reactive.Subscriber">Subscriber</a>[<span class="extype" name="monifu.reactive.observers.SynchronousSubscriber.T">T</span>], <a href="../Observer.html" class="extype" name="monifu.reactive.Observer">Observer</a>[<span class="extype" name="monifu.reactive.observers.SynchronousSubscriber.T">T</span>], <a href="http://www.scala-lang.org/api/2.11.7/index.html#scala.AnyRef" class="extype" target="_top">AnyRef</a>, <a href="http://www.scala-lang.org/api/2.11.7/index.html#scala.Any" class="extype" target="_top">Any</a></div>
         </div></div>
