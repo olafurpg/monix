@@ -30,7 +30,7 @@ import scala.language.higherKinds
   * [[ConnectableObservable.map]] is still a `ConnectableObservable`
   * and this interface represents an utility to do just that.
   */
-trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
+trait LiftOperators[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   protected def liftToSelf[U](f: Observable[T] => Observable[U]): Self[U]
 
   override def map[U](f: T => U): Self[U] =
@@ -404,4 +404,6 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
 
   override def zipWithIndex: Self[(T, Long)] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).zipWithIndex)
+
+
 }

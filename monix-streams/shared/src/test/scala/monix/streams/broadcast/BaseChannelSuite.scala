@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package monix.streams.channels
+package monix.streams.broadcast
 
 import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Ack.Continue
 import monix.streams.exceptions.DummyException
-import monix.streams.{Channel, Observable, Observer}
+import monix.streams.{Observable, Observer}
 
 import scala.concurrent.Promise
 import scala.util.Random
 
 
 trait BaseChannelSuite extends TestSuite[TestScheduler] {
-  case class Sample(channel: Channel[Long] with Observable[Long], expectedSum: Long)
+  case class Sample(channel: Subject[Long] with Observable[Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {

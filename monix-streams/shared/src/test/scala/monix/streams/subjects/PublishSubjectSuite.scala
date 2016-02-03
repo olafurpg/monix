@@ -18,6 +18,7 @@
 package monix.streams.subjects
 
 import monix.streams.Ack.Continue
+import monix.streams.broadcast.PublishPipe
 import monix.streams.exceptions.DummyException
 import monix.streams.{Ack, Observable, Observer}
 import scala.concurrent.Future
@@ -26,17 +27,17 @@ import scala.util.Success
 
 object PublishSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = PublishSubject[Long]()
+    val s = PublishPipe[Long]()
     Sample(s, 0)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = PublishSubject[Long]()
+    val s = PublishPipe[Long]()
     Some(Sample(s, expectedElems.sum))
   }
 
   test("issue #50") { implicit s =>
-    val p = PublishSubject[Int]()
+    val p = PublishPipe[Int]()
     var received = 0
 
     Observable.merge(p).subscribe(new Observer[Int] {
@@ -60,7 +61,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should emit from the point of subscription forward") { implicit s =>
-    val subject = PublishSubject[Int]()
+    val subject = PublishPipe[Int]()
     assertEquals(subject.onNext(1), Continue)
     assertEquals(subject.onNext(2), Continue)
     assertEquals(subject.onNext(3), Continue)
@@ -87,7 +88,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work synchronously for synchronous subscribers") { implicit s =>
-    val subject = PublishSubject[Int]()
+    val subject = PublishPipe[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -112,7 +113,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work with asynchronous subscribers") { implicit s =>
-    val subject = PublishSubject[Int]()
+    val subject = PublishPipe[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -141,7 +142,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately") { implicit s =>
-    val subject = PublishSubject[Int]()
+    val subject = PublishPipe[Int]()
     subject.onComplete()
 
     var wasCompleted = false
@@ -155,7 +156,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = PublishSubject[Int]()
+    val subject = PublishPipe[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

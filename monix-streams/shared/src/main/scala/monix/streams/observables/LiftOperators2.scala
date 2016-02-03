@@ -17,7 +17,8 @@
 
 package monix.streams.observables
 
-import monix.streams.{Observable, Subject, OverflowStrategy}
+import monix.streams.broadcast.Pipe
+import monix.streams.{Observable, OverflowStrategy}
 
 import language.higherKinds
 import java.io.PrintStream
@@ -27,10 +28,8 @@ import monix.streams.OverflowStrategy.{Synchronous, Evicted}
 import scala.concurrent.duration.FiniteDuration
 
 /** An interface to be extended in Observable types that want to preserve
-  * the return type when applying operators. For example the result of
-  * [[Subject.map Subject.map]]
-  * is still a `Subject` and this interface represents
-  * an utility to do just that.
+  * the return type when applying operators. For example the result of [[Pipe.map]]
+  * is still a `Pipe` and this interface represents an utility to do just that.
   */
 trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =>
   protected def liftToSelf[U](f: Observable[T] => Observable[U]): Self[I,U]

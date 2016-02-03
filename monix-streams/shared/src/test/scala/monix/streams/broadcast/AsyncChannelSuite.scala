@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.channels
+package monix.streams.broadcast
 
 import monix.execution.Scheduler
 import monix.streams.Ack.Continue
@@ -25,7 +25,7 @@ import monix.streams.exceptions.DummyException
 
 object AsyncChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = AsyncChannel[Long](Unbounded)
+    val c = AsyncSubject[Long](Unbounded)
     Sample(c, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -47,7 +47,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncChannel[Long](Unbounded)
+    val channel = AsyncSubject[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -91,7 +91,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncChannel[Long](Unbounded)
+    val channel = AsyncSubject[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -130,7 +130,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val channel = AsyncChannel[Long](Unbounded)
+    val channel = AsyncSubject[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)

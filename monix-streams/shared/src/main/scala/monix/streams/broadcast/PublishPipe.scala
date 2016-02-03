@@ -14,30 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monix.streams.subjects
 
-import org.sincron.atomic.Atomic
-import monix.streams.{Subscriber, Subject, Ack}
-import monix.streams.Ack.{Continue, Cancel}
+package monix.streams.broadcast
+
+import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.broadcast.PublishPipe.State
 import monix.streams.internal.PromiseCounter
-import monix.streams.subjects.PublishSubject.State
-import monix.streams.Subscriber
+import monix.streams.{Ack, Subscriber}
+import org.sincron.atomic.Atomic
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** A `PublishSubject` emits to a subscriber only those items that are
+/** A `PublishPipe` emits to a subscriber only those items that are
   * emitted by the source subsequent to the time of the subscription
   *
-  * If the source terminates with an error, the `PublishSubject` will not emit any
+  * If the source terminates with an error, the `PublishPipe` will not emit any
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   *
-  * @see [[Subject]]
+  * @see [[Pipe]]
   */
-final class PublishSubject[T] private () extends Subject[T,T] {
+final class PublishPipe[T] private () extends Pipe[T,T] {
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -175,19 +174,19 @@ final class PublishSubject[T] private () extends Subject[T,T] {
   }
 }
 
-object PublishSubject {
-  /** Builder for [[PublishSubject]] */
-  def apply[T](): PublishSubject[T] =
-    new PublishSubject[T]()
+object PublishPipe {
+  /** Builder for [[PublishPipe]] */
+  def apply[T](): PublishPipe[T] =
+    new PublishPipe[T]()
 
-  /** Synchronized state for [[PublishSubject]].
+  /** Synchronized state for [[PublishPipe]].
     *
     * NOTE: `subscribers` can be `null`.
     *
     * @param subscribers is the set of subscribers that are currently subscribed
     * @param errorThrown is the error received in `onError`, or `null` if no error
     */
-  private[subjects] final case class State[-T](
+  private[broadcast] final case class State[-T](
     subscribers: Vector[Subscriber[T]] = Vector.empty,
     errorThrown: Throwable = null) {
 

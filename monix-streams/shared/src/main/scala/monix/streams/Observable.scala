@@ -23,10 +23,10 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Scheduler}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.OverflowStrategy.{default => defaultStrategy}
+import monix.streams.broadcast._
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.observables.{CachedObservable, ConnectableObservable, GroupedObservable}
 import monix.streams.observers._
-import monix.streams.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import monix.streams.internal.{operators, builders}
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -222,7 +222,7 @@ import scala.util.control.NonFatal
   *
   * For example to "imperatively" build an Observable, we could use channels:
   * {{{
-  *   val channel = PublishChannel[Int](OverflowStrategy.DropNew(bufferSize = 100))
+  *   val channel = PublishSubject[Int](OverflowStrategy.DropNew(bufferSize = 100))
   *
   *   // look mum, no back-pressure concerns
   *   channel.pushNext(1)
@@ -231,10 +231,10 @@ import scala.util.control.NonFatal
   *   channel.pushComplete()
   * }}}
   *
-  * In Monix a [[Channel]] is much like a [[Subject]], meaning that it can be
-  * used to construct observables, except that a `Channel` has a buffer
-  * attached and IS NOT an `Observer` (like the `Subject` is). In Monix
-  * (compared to Rx implementations) [[Subject Subjects]] are subject to
+  * In Monix a [[Subject]] is much like a [[Pipe]], meaning that it can be
+  * used to construct observables, except that a `Subject` has a buffer
+  * attached and IS NOT an `Observer` (like the `Pipe` is). In Monix
+  * (compared to Rx implementations) [[Pipe Subjects]] are subject to
   * back-pressure concerns as well, so they can't be used in an imperative way,
   * like described above, hence the need for Channels.
   *
@@ -249,8 +249,8 @@ import scala.util.control.NonFatal
   *      [[Observer]] and a [[monix.execution.Scheduler Scheduler]]
   * @see [[monix.execution.Cancelable Cancelable]], the type returned by higher
   *      level `subscribe` variants and that can be used to cancel subscriptions
-  * @see [[monix.streams.Subject Subject]], which are both Observables and Observers
-  * @see [[Channel Channel]], which are meant for imperatively building
+  * @see [[Pipe Pipe]], which are both Observables and Observers
+  * @see [[Subject Subject]], which are meant for imperatively building
   *      Observables without back-pressure concerns
   * @define concatDescription Concatenates the sequence
   *                           of Observables emitted by the source into one Observable,
@@ -302,16 +302,16 @@ import scala.util.control.NonFatal
   * @define mergeReturn an Observable that emits items that are the
   *                     result of flattening the items emitted by the Observables
   *                     emitted by `this`.
-  * @define overflowStrategyParam the [[OverflowStrategy overflow strategy]]
-  *                               used for buffering, which specifies what to do in case we're
-  *                               dealing with a slow consumer - should an unbounded buffer be used,
-  *                               should back-pressure be applied, should the pipeline drop newer or
-  *                               older events, should it drop the whole buffer? See
-  *                               [[OverflowStrategy]] for more details.
-  * @define onOverflowParam a function that is used for signaling a special
-  *                         event used to inform the consumers that an overflow event
-  *                         happened, function that receives the number of dropped events as
-  *                         a parameter (see [[OverflowStrategy.Evicted]])
+  * @define overflowStrategyParam  the [[OverflowStrategy overflow strategy]]
+  *                                used for buffering, which specifies what to do in case we're
+  *                                dealing with a slow consumer - should an unbounded buffer be used,
+  *                                should back-pressure be applied, should the pipeline drop newer or
+  *                                older events, should it drop the whole buffer? See
+  *                                [[OverflowStrategy]] for more details.
+  * @define onOverflowParam        a function that is used for signaling a special
+  *                                event used to inform the consumers that an overflow event
+  *                                happened, function that receives the number of dropped events as
+  *                                a parameter (see [[OverflowStrategy.Evicted]])
   * @define delayErrorsDescription This version
   *                                is reserving onError notifications until all of the
   *                                Observables complete and only then passing the issued
@@ -1662,7 +1662,7 @@ trait Observable[+T] { self =>
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers).
     */
-  def multicast[U >: T, R](subject: Subject[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
+  def multicast[U >: T, R](subject: Pipe[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable(this, subject)
 
   /** $asyncBoundaryDescription
@@ -1681,7 +1681,7 @@ trait Observable[+T] { self =>
     */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.unsafeCreate { subscriber =>
-      unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
+      unsafeSubscribeFn(BufferedSubscriber.withOverflowSignal(subscriber, overflowStrategy)(onOverflow))
     }
 
   /** While the destination observer is busy, drop the incoming events.
@@ -1718,10 +1718,10 @@ trait Observable[+T] { self =>
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.PublishSubject PublishSubject]].
+    * [[PublishPipe PublishPipe]].
     */
   def publish(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(PublishSubject[T]())
+    multicast(PublishPipe[T]())
 
   /** Returns a new Observable that multi-casts (shares) the original Observable.
     */
@@ -1766,7 +1766,7 @@ trait Observable[+T] { self =>
     *
     * @param maxCapacity is the maximum buffer size after which old events
     *                    start being dropped (according to what happens when using
-    *                    [[monix.streams.subjects.ReplaySubject.createWithSize ReplaySubject.createWithSize]])
+    *                    [[ReplayPipe.createWithSize ReplayPipe.createWithSize]])
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
@@ -1775,35 +1775,35 @@ trait Observable[+T] { self =>
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.BehaviorSubject BehaviorSubject]].
+    * [[BehaviorPipe BehaviorPipe]].
     */
   def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
-    multicast(BehaviorSubject[U](initialValue))
+    multicast(BehaviorPipe[U](initialValue))
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
+    * [[broadcast.ReplayPipe ReplayPipe]].
     */
   def replay(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplaySubject[T]())
+    multicast(ReplayPipe[T]())
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
+    * [[broadcast.ReplayPipe ReplayPipe]].
     *
     * @param bufferSize is the size of the buffer limiting the number of items
     *                   that can be replayed (on overflow the head starts being
     *                   dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplaySubject.createWithSize[T](bufferSize))
+    multicast(ReplayPipe.createWithSize[T](bufferSize))
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.AsyncSubject AsyncSubject]].
+    * [[AsyncPipe AsyncPipe]].
     */
   def publishLast(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(AsyncSubject[T]())
+    multicast(AsyncPipe[T]())
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which
@@ -1939,7 +1939,7 @@ trait Observable[+T] { self =>
     * it executes the given callback.
     */
   def foreach(cb: T => Unit)(implicit s: Scheduler): Unit =
-    unsafeSubscribeFn(new SynchronousObserver[T] {
+    unsafeSubscribeFn(new SyncObserver[T] {
       def onNext(elem: T) =
         try {
           cb(elem); Continue

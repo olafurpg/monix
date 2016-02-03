@@ -20,13 +20,14 @@ package monix.streams.observers
 import monix.execution.Scheduler
 import monix.streams._
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.broadcast.Subject
 import monix.streams.internal.FutureAckExtensions
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
-  * to `connect()` happens. Prior to `connect()` it's also a [[Channel]] into which you can enqueue
+  * to `connect()` happens. Prior to `connect()` it's also a [[Subject]] into which you can enqueue
   * events for delivery once `connect()` happens, but before any items
   * emitted by `onNext` / `onComplete` and `onError`.
   *
@@ -66,7 +67,7 @@ import scala.concurrent.{Future, Promise}
   * }}}
   */
 final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
-  extends Channel[T] with Subscriber[T] { self =>
+  extends Subscriber[T] { self =>
 
   private[this] val lock = new AnyRef
   implicit def scheduler: Scheduler =

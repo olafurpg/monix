@@ -14,25 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monix.streams.subjects
 
-import org.sincron.atomic.Atomic
+package monix.streams.broadcast
+
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.broadcast.PublishPipe.State
 import monix.streams.internal._
-import monix.streams.subjects.PublishSubject.State
-import monix.streams.{Ack, Subject, Subscriber}
+import monix.streams.{Ack, Subscriber}
+import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
-/** An `AsyncSubject` emits the last value (and only the last value) emitted by
+/** An `AsyncPipe` emits the last value (and only the last value) emitted by
   * the source Observable, and only after that source Observable completes.
   *
-  * If the source terminates with an error, the `AsyncSubject` will not emit any
+  * If the source terminates with an error, the `AsyncPipe` will not emit any
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
-final class AsyncSubject[T] extends Subject[T,T] { self =>
+final class AsyncPipe[T] extends Pipe[T,T] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -112,7 +112,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   }
 }
 
-object AsyncSubject {
-  def apply[T](): AsyncSubject[T] =
-    new AsyncSubject[T]()
+object AsyncPipe {
+  def apply[T](): AsyncPipe[T] =
+    new AsyncPipe[T]()
 }

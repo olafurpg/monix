@@ -19,8 +19,9 @@ package monix.streams.observables
 
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
+import monix.streams.broadcast.Pipe
 import monix.streams.observers.CacheUntilConnectSubscriber
-import monix.streams.{Subscriber, Subject, Observable}
+import monix.streams.{Subscriber, Observable}
 import monix.streams
 
 /** Represents an [[Observable Observable]] that waits for
@@ -31,7 +32,7 @@ import monix.streams
   * [[monix.streams.Observable.multicast Observable.multicast]].
   */
 trait ConnectableObservable[+T] extends Observable[T]
-  with LiftOperators1[T, ConnectableObservable] { self =>
+  with LiftOperators[T, ConnectableObservable] { self =>
 
   /** Starts emitting events to subscribers. */
   def connect(): BooleanCancelable
@@ -57,9 +58,9 @@ trait ConnectableObservable[+T] extends Observable[T]
 
 object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
-    * and a given [[Subject]].
+    * and a given [[Pipe]].
     */
-  def apply[T, R](source: Observable[T], subject: Subject[T, R])
+  def apply[T, R](source: Observable[T], subject: Pipe[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
@@ -82,7 +83,7 @@ object ConnectableObservable {
     * the events are piped through the given `subject` to the final
     * subscribers.
     */
-  def cacheUntilConnect[T, R](source: Observable[T], subject: Subject[T, R])
+  def cacheUntilConnect[T, R](source: Observable[T], subject: Pipe[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
