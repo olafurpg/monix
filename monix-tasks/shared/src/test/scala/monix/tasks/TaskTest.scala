@@ -59,11 +59,11 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.defer should execute on same thread") { implicit s =>
+  test("Task.eval should execute on same thread") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.defer(trigger())
+    val task = Task.eval(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync

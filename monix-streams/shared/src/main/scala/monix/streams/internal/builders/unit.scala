@@ -25,7 +25,7 @@ import scala.concurrent.duration.FiniteDuration
 
 private[monix] object unit {
   /**
-    * Implementation for [[Observable.unit]].
+    * Implementation for [[Observable.now]].
     */
   def one[A](elem: A): Observable[A] =
     Observable.unsafeCreate { s =>
@@ -49,7 +49,7 @@ private[monix] object unit {
     Observable.unsafeCreate(_.onComplete())
 
   /**
-    * Implementation for [[Observable.error]].
+    * Implementation for [[Observable.failed]].
     */
   def error(ex: Throwable): Observable[Nothing] =
     Observable.unsafeCreate(_.onError(ex))

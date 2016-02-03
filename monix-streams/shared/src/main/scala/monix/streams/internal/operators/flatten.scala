@@ -109,7 +109,7 @@ private[monix] object flatten {
 
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      val observerU = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
+      val observerU: Subscriber[U] = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
 
       source.unsafeSubscribeFn(new SyncObserver[T] {
         private[this] val streamActivity =

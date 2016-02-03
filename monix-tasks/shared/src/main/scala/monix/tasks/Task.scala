@@ -320,6 +320,90 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
+  /** Creates a new task that in case of error will fallback to the
+    * given backup task.
+    */
+  def onErrorFallbackTo[U >: T](that: => Task[U]): Task[U] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+        def onSuccess(v: T, depth: Int) =
+          cb.safeOnSuccess(scheduler, depth, v)
+
+        def onError(ex: Throwable, depth: Int): Unit = {
+          var streamError = true
+          try {
+            val newTask = that
+            streamError = false
+            newTask.stackSafeRun(scheduler, cancelable, depth, cb)
+          } catch {
+            case NonFatal(err) if streamError =>
+              scheduler.reportFailure(ex)
+              cb.safeOnError(scheduler, depth, err)
+          }
+        }
+      })
+    }
+
+  /** Creates a new task that in case of error will retry executing
+    * the source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  def onErrorRetry[U >: T](maxRetries: Int): Task[U] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      def tryExecute(depth: Int, tryIdx: Int, ex: Throwable): Unit = {
+        if (tryIdx <= maxRetries)
+          self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+            def onSuccess(v: T, depth: Int) =
+              cb.safeOnSuccess(scheduler, depth, v)
+            def onError(ex: Throwable, depth: Int): Unit =
+              tryExecute(depth, tryIdx+1, ex)
+          })
+        else
+          cb.safeOnError(scheduler, depth, ex)
+      }
+
+      if (maxRetries > 0)
+        tryExecute(depth, tryIdx = 0, ex = null)
+      else
+        self.unsafeRunFn(scheduler, cancelable, depth, cb)
+    }
+
+  /** Creates a new task that in case of error will retry executing
+    * the source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  def onErrorRetryIf(p: Throwable => Boolean): Task[T] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      // Loops until successful, or until the predicate returns false.
+      def loop(depth: Int, ex: Throwable): Unit =
+        self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+          def onSuccess(v: T, depth: Int) =
+            cb.safeOnSuccess(scheduler, depth, v)
+
+          def onError(ex: Throwable, depth: Int): Unit = {
+            var toReport = ex
+            val shouldContinue = (ex == null) || (
+              try p(ex) catch {
+                case NonFatal(err) =>
+                  toReport = err
+                  scheduler.reportFailure(ex)
+                  false
+              })
+
+            if (shouldContinue)
+              loop(depth, ex)
+            else
+              cb.safeOnError(scheduler, depth, toReport)
+          }
+        })
+
+      loop(depth, ex=null)
+    }
+
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
     * task emitting any item.
@@ -363,7 +447,7 @@ sealed abstract class Task[+T] { self =>
     * the given backup Task in case the given duration passes without the
     * source emitting any item.
     */
-  def timeout[U >: T](after: FiniteDuration, backup: Task[U]): Task[U] =
+  def timeout[U >: T](after: FiniteDuration, backup: => Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       val activeTask = MultiAssignmentCancelable()
       val gate = Atomic(true)
@@ -498,7 +582,7 @@ object Task {
     * result of the given function executed asynchronously.
     */
   def apply[T](f: => T): Task[T] =
-    Task.fork(Task.defer(f))
+    Task.fork(Task.eval(f))
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -511,7 +595,7 @@ object Task {
     * Note that since `Task` is not memoized, this will recompute the value
     * each time the `Task` is executed.
     */
-  def defer[T](f: => T): Task[T] =
+  def eval[T](f: => T): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
       // protecting against user code errors
       var streamErrors = true
@@ -524,6 +608,12 @@ object Task {
           callback.safeOnError(scheduler, depth, ex)
       }
     }
+
+  /** Promote a non-strict value representing a Task to a Task of
+    * the same type.
+    */
+  def defer[T](task: => Task[T]): Task[T] =
+    Task.eval(task).flatten
 
   /** Mirrors the given source `Task`, but upon execution it
     * forks its evaluation off into a separate (logical) thread.
@@ -674,7 +764,7 @@ object Task {
     * be called once, with a simple check.
     */
   private class SafeCallback[-T]
-  (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
+    (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
     extends Callback[T] {
 
     private[this] var isActive = true

@@ -270,8 +270,8 @@ trait LiftOperators[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def complete: Self[Nothing] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).ignoreElements)
 
-  override def error: Self[Throwable] =
-    liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).error)
+  override def failed: Self[Throwable] =
+    liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).failed)
 
   override def endWithError(error: Throwable): Self[T] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).endWithError(error))
@@ -369,6 +369,9 @@ trait LiftOperators[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def whileBusyBuffer[U >: T](overflowStrategy: Evicted, onOverflow: (Long) => U): Self[U] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).whileBusyBuffer(overflowStrategy, onOverflow))
 
+  override def onErrorRecover[U >: T](pf: PartialFunction[Throwable, U]): Self[U] =
+    liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).onErrorRecover(pf))
+
   override def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).onErrorRecoverWith(pf))
 
@@ -404,6 +407,4 @@ trait LiftOperators[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
 
   override def zipWithIndex: Self[(T, Long)] =
     liftToSelf(o => Observable.unsafeCreate[T](o.unsafeSubscribeFn).zipWithIndex)
-
-
 }

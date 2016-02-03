@@ -163,7 +163,7 @@ private[monix] object from {
     }
 
   /**
-   * Implementation for [[Observable.fromTask]].
+   * Implementation for [[Observable.eval]].
    */
   def task[A](t: => A): Observable[A] =
     Observable.unsafeCreate { subscriber =>
