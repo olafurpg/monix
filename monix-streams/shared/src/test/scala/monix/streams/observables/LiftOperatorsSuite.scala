@@ -20,9 +20,9 @@ package monix.streams.observables
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
-import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.broadcast.{Pipe, PublishPipe, ObservableSubject, PublishSubject}
 import monix.streams.Observable
+import monix.streams.OverflowStrategy.Unbounded
+import monix.streams.broadcast.{Pipe, PublishPipe, PublishSubject}
 import scala.util.Success
 
 object LiftOperatorsSuite extends SimpleTestSuite {
@@ -39,7 +39,7 @@ object LiftOperatorsSuite extends SimpleTestSuite {
 
   test("Pipe should work") {
     implicit val s = TestScheduler()
-    val result: Pipe[Int, Int] = PublishPipe[Int]().sum
+    val result = PublishPipe[Int]().sum
     val f = result.asFuture
 
     result.onNext(1)
@@ -50,11 +50,12 @@ object LiftOperatorsSuite extends SimpleTestSuite {
 
   test("ObservableSubject should work") {
     implicit val s = TestScheduler()
-    val result: ObservableSubject[Int, Int] = PublishSubject[Int](Unbounded).sum
+    val result = PublishSubject[Int](Unbounded).sum
     val f = result.asFuture
 
-    result.pushNext(1)
-    result.pushComplete()
+    result.onNext(1)
+    result.onComplete()
+
     s.tick()
     assertEquals(f.value, Some(Success(Some(1))))
   }

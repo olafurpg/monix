@@ -52,14 +52,14 @@ object AsyncChannelSuite extends BaseChannelSuite {
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
 
-    channel.pushNext(10, 20, 30)
+    for (x <- Seq(10, 20, 30)) channel.onNext(x)
 
     s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 0)
 
-    channel.pushComplete()
-    channel.pushComplete()
+    channel.onComplete()
+    channel.onComplete()
     s.tick()
 
     assertEquals(sum, 30 * 3)
@@ -96,16 +96,16 @@ object AsyncChannelSuite extends BaseChannelSuite {
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
 
-    channel.pushNext(10)
-    channel.pushNext(20)
-    channel.pushNext(30)
+    channel.onNext(10)
+    channel.onNext(20)
+    channel.onNext(30)
 
     s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 0)
 
-    channel.pushError(DummyException("dummy1"))
-    channel.pushError(DummyException("dummy2"))
+    channel.onError(DummyException("dummy1"))
+    channel.onError(DummyException("dummy2"))
 
     s.tick()
     assertEquals(sum, 0)
@@ -135,7 +135,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
 
-    channel.pushComplete()
+    channel.onComplete()
 
     s.tick()
     assertEquals(sum, 0)

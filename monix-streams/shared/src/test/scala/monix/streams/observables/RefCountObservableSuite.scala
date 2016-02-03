@@ -99,10 +99,10 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     ref.subscribe(createObserver)
 
     assertEquals(received, 0)
-    ch.pushNext(1)
+    ch.onNext(1)
     s.tick(); assertEquals(received, 2)
 
-    ch.pushError(DummyException("dummy"))
+    ch.onError(DummyException("dummy"))
     s.tick(); assertEquals(completed, 2)
 
     ref.subscribe(createObserver)
@@ -131,8 +131,8 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 
-    ch.pushNext(1)
-    ch.pushComplete()
+    ch.onNext(1)
+    ch.onComplete()
     s.tick()
 
     assertEquals(received, 2)

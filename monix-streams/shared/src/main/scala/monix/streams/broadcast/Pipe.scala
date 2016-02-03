@@ -19,8 +19,10 @@ package monix.streams.broadcast
 
 import monix.execution.Scheduler
 import monix.execution.internal.Platform
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observables.LiftOperators
+import monix.streams.{Ack, Observable, Observer, Subscriber}
 import org.reactivestreams.{Processor, Subscriber => RSubscriber, Subscription}
+import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 /** A `Pipe` is a sort of bridge or proxy that acts both as an
@@ -31,12 +33,26 @@ import scala.language.reflectiveCalls
   *
   * Useful to build multicast Observables or reusable processing pipelines.
   */
-trait Pipe[I, +T] extends Observable[T] with Observer[I] { self =>
-  override def toReactive[U >: T](implicit s: Scheduler): Processor[I, U] =
+trait Pipe[I, +O] extends Observable[O] with Observer[I]
+  with LiftOperators[O, ({type λ[+α] = Pipe[I, α]})#λ] { self =>
+
+  override def toReactive[U >: O](implicit s: Scheduler): Processor[I, U] =
     Pipe.toReactiveProcessor(self, Platform.recommendedBatchSize)
 
-  def toReactive[U >: T](bufferSize: Int)(implicit s: Scheduler): Processor[I, U] =
+  def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): Processor[I, U] =
     Pipe.toReactiveProcessor(self, bufferSize)
+
+  protected override
+  def liftToSelf[U](f: (Observable[O]) => Observable[U]): Pipe[I, U] =
+    new Pipe[I, U] {
+      def onNext(elem: I): Future[Ack] = self.onNext(elem)
+      def onComplete(): Unit = self.onComplete()
+      def onError(ex: Throwable): Unit = self.onError(ex)
+
+      private[this] val lifted = f(self)
+      def unsafeSubscribeFn(subscriber: Subscriber[U]): Unit =
+        lifted.unsafeSubscribeFn(subscriber)
+    }
 }
 
 object Pipe {

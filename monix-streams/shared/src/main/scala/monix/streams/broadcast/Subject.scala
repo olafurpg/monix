@@ -17,11 +17,10 @@
 
 package monix.streams.broadcast
 
-import monix.streams.observers.SyncObserver
-
-import scala.language.reflectiveCalls
 import monix.streams.observables.LiftOperators
+import monix.streams.observers.SyncObserver
 import monix.streams.{Ack, Observable, Subscriber}
+import scala.language.reflectiveCalls
 
 /** A subject is meant for imperative style feeding of events.
   *
@@ -30,7 +29,7 @@ import monix.streams.{Ack, Observable, Subscriber}
   *
   *     (onNext)* (onComplete | onError)
   */
-trait Subject[I,+O] extends SyncObserver[I] with Pipe[I,O]
+trait Subject[I,+O] extends Observable[O] with SyncObserver[I]
   with LiftOperators[O, ({type λ[+α] = Subject[I, α]})#λ] { self =>
 
   protected override

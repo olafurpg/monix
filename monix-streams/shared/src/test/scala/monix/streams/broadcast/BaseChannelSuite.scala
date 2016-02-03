@@ -29,7 +29,7 @@ import scala.util.Random
 
 
 trait BaseChannelSuite extends TestSuite[TestScheduler] {
-  case class Sample(channel: Subject[Long] with Observable[Long], expectedSum: Long)
+  case class Sample(channel: Subject[Long,Long] with Observable[Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
@@ -65,7 +65,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(channel, expectedSum) = alreadyTerminatedTest(Seq.empty)
-    channel.pushComplete()
+    channel.onComplete()
 
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -97,7 +97,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(channel, _) = alreadyTerminatedTest(Seq.empty)
-    channel.pushError(DummyException("dummy"))
+    channel.onError(DummyException("dummy"))
     s.tick()
 
     channel.unsafeSubscribeFn(createObserver)
@@ -128,7 +128,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(channel, expectedSum) = alreadyTerminatedTest(elems)
-    channel.pushNext(elems :_*); channel.pushComplete()
+    for (e <- elems) channel.onNext(e); channel.onComplete()
     s.tick()
 
     channel.unsafeSubscribeFn(createObserver)
@@ -157,8 +157,8 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(channel, _) = alreadyTerminatedTest(elems)
-    channel.pushNext(elems : _*)
-    channel.pushError(DummyException("dummy"))
+    for (e <- elems) channel.onNext(e)
+    channel.onError(DummyException("dummy"))
 
     s.tick()
 
@@ -193,8 +193,8 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
 
     val Sample(channel, expectedSum) = alreadyTerminatedTest(Seq(elem))
     if (expectedSum == 0) ignore() else {
-      channel.pushNext(elem)
-      channel.pushComplete()
+      channel.onNext(elem)
+      channel.onComplete()
       s.tick()
 
       val promises = for (_ <- 0 until 3) yield {
@@ -252,8 +252,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
         channel.subscribe(createObserver)
         s.tick()
 
-        channel.pushNext(elems :_*)
-        channel.pushComplete()
+        for (e <- elems) channel.onNext(e); channel.onComplete()
         s.tick()
 
         assertEquals(wereCompleted, 3)

@@ -225,9 +225,9 @@ import scala.util.control.NonFatal
   *   val channel = PublishSubject[Int](OverflowStrategy.DropNew(bufferSize = 100))
   *
   *   // look mum, no back-pressure concerns
-  *   channel.pushNext(1)
-  *   channel.pushNext(2)
-  *   channel.pushNext(3)
+  *   channel.pushFirst(1)
+  *   channel.pushFirst(2)
+  *   channel.pushFirst(3)
   *   channel.pushComplete()
   * }}}
   *
@@ -1659,11 +1659,22 @@ trait Observable[+T] { self =>
   def repeat: Observable[T] =
     operators.repeat.elements(self)
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers).
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is shared by all observers).
+    *
+    * This method is unsafe because `Pipe` objects are stateful and have to obey the
+    * `Observer` contract, meaning that they shouldn't be subscribed multiple times,
+    * so they are error prone. Only use if you know what you're doing, otherwise
+    * prefer the safe [[Observable!.multicast multicast]] operator.
     */
-  def multicast[U >: T, R](subject: Pipe[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
-    ConnectableObservable(this, subject)
+  def unsafeMulticast[U >: T, R](pipe: Pipe[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
+    ConnectableObservable.unsafeMulticast(this, pipe)
+
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is shared by all observers).
+    */
+  def multicast[U >: T, R](recipe: PipeRecipe[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
+    ConnectableObservable.multicast(this, recipe)
 
   /** $asyncBoundaryDescription
     *
@@ -1721,7 +1732,7 @@ trait Observable[+T] { self =>
     * [[PublishPipe PublishPipe]].
     */
   def publish(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(PublishPipe[T]())
+    unsafeMulticast(PublishPipe[T]())
 
   /** Returns a new Observable that multi-casts (shares) the original Observable.
     */
@@ -1778,14 +1789,14 @@ trait Observable[+T] { self =>
     * [[BehaviorPipe BehaviorPipe]].
     */
   def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
-    multicast(BehaviorPipe[U](initialValue))
+    unsafeMulticast(BehaviorPipe[U](initialValue))
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
     * [[broadcast.ReplayPipe ReplayPipe]].
     */
   def replay(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplayPipe[T]())
+    unsafeMulticast(ReplayPipe[T]())
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
@@ -1796,14 +1807,14 @@ trait Observable[+T] { self =>
     *                   dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplayPipe.createWithSize[T](bufferSize))
+    unsafeMulticast(ReplayPipe.createWithSize[T](bufferSize))
 
   /** Converts this observable into a multicast observable, useful for turning a cold observable into
     * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
     * [[AsyncPipe AsyncPipe]].
     */
   def publishLast(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(AsyncPipe[T]())
+    unsafeMulticast(AsyncPipe[T]())
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which

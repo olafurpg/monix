@@ -19,17 +19,16 @@ package monix.streams.observables
 
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
-import monix.streams.broadcast.Pipe
+import monix.streams.broadcast.{Pipe, PipeRecipe}
 import monix.streams.observers.CacheUntilConnectSubscriber
-import monix.streams.{Subscriber, Observable}
-import monix.streams
+import monix.streams.{Observable, Subscriber}
 
 /** Represents an [[Observable Observable]] that waits for
   * the call to `connect()` before
   * starting to emit elements to its subscriber(s).
   *
   * Useful for converting cold observables into hot observables and thus returned by
-  * [[monix.streams.Observable.multicast Observable.multicast]].
+  * [[monix.streams.Observable.unsafeMulticast Observable.multicast]].
   */
 trait ConnectableObservable[+T] extends Observable[T]
   with LiftOperators[T, ConnectableObservable] { self =>
@@ -60,20 +59,42 @@ object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[Pipe]].
     */
-  def apply[T, R](source: Observable[T], subject: Pipe[T, R])
+  def unsafeMulticast[T, R](source: Observable[T], pipe: Pipe[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
       private[this] lazy val connection = {
-        source.subscribe(subject)
+        source.subscribe(pipe)
       }
 
-      def connect() = {
+      def connect(): BooleanCancelable = {
         connection
       }
 
       def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
-        subject.unsafeSubscribeFn(subscriber)
+        pipe.unsafeSubscribeFn(subscriber)
+      }
+    }
+  }
+
+  /** Builds a [[ConnectableObservable]] for the given observable source
+    * and a given [[PipeRecipe]].
+    */
+  def multicast[T, R](source: Observable[T], recipe: PipeRecipe[T, R])
+    (implicit s: Scheduler): ConnectableObservable[R] = {
+
+    new ConnectableObservable[R] {
+      private[this] val pipe = recipe.newInstance()
+      private[this] lazy val connection = {
+        source.subscribe(pipe)
+      }
+
+      def connect(): BooleanCancelable = {
+        connection
+      }
+
+      def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
+        pipe.unsafeSubscribeFn(subscriber)
       }
     }
   }
@@ -98,7 +119,7 @@ object ConnectableObservable {
         BooleanCancelable { cancelRef.cancel() }
       }
 
-      def connect() = {
+      def connect(): BooleanCancelable = {
         connection
       }
 

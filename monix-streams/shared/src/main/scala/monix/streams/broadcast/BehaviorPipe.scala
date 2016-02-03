@@ -52,7 +52,7 @@ final class BehaviorPipe[T] private (initialValue: T) extends Pipe[T,T] { self =
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
       if (stateRef.compareAndSet(state, newState)) {
-        c.pushNext(state.cached)
+        c.pushFirst(state.cached)
         c.connect()
       }
       else {
