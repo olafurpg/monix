@@ -127,5 +127,11 @@ object CancelableFuture {
       new Implementation(underlying.mapTo[S], cancelable)
     override def andThen[U](pf: PartialFunction[Try[T], U])(implicit executor: ExecutionContext): CancelableFuture[T] =
       new Implementation(underlying.andThen(pf), cancelable)
+
+    override def transform[S](f: scala.util.Try[T] => scala.util.Try[S])(implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = 
+      new Implementation(underlying.transform(f), cancelable)
+
+    def transformWith[S](f: scala.util.Try[T] => scala.concurrent.Future[S])(implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = 
+      new Implementation(underlying.transformWith(f), cancelable)
   }
 }

@@ -93,9 +93,9 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         r.reportFailure(e)
     }
 
-    val pool = new scala.concurrent.forkjoin.ForkJoinPool(
+    val pool = new java.util.concurrent.ForkJoinPool(
       parallelism,
-      ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+      java.util.concurrent.ForkJoinPool.defaultForkJoinWorkerThreadFactory,
       exceptionHandler,
       true // asyncMode
     )

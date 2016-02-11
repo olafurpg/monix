@@ -44,6 +44,9 @@ object Ack {
       executor.execute(new Runnable {
         def run(): Unit = func(AsSuccess)
       })
+
+    def transform[S](f: Try[Continue] => Try[S])(implicit executor: scala.concurrent.ExecutionContext): Future[S] = ???
+    def transformWith[S](f: Try[Continue] => scala.concurrent.Future[S])(implicit executor: scala.concurrent.ExecutionContext): Future[S] = ???
   }
 
   /** Acknowledgement or processing that signals upstream that the
@@ -63,6 +66,9 @@ object Ack {
       executor.execute(new Runnable {
         def run(): Unit = func(AsSuccess)
       })
+
+    def transform[S](f: Try[Cancel] => Try[S])(implicit executor: scala.concurrent.ExecutionContext): Future[S] = ???
+    def transformWith[S](f: Try[Cancel] => scala.concurrent.Future[S])(implicit executor: scala.concurrent.ExecutionContext): Future[S] = ???
   }
 }
 

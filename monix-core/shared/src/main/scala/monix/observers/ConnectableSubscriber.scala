@@ -24,6 +24,7 @@ import monix.broadcast.Subject
 import monix.internal.FutureAckExtensions
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
+import scala.util.{Success, Failure}
 
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
@@ -110,17 +111,19 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
         Observable.fromIterable(queue).unsafeSubscribeFn(new Observer[T] {
           private[this] val bufferWasDrained = Promise[Ack]()
 
-          bufferWasDrained.future.onSuccess {
-            case Continue =>
+          bufferWasDrained.future.onComplete {
+            case Success(Continue) =>
               connectedPromise.success(Continue)
               isConnected = true
               queue = null // gc relief
 
-            case Cancel =>
+            case Success(Cancel) =>
               wasCanceled = true
               connectedPromise.success(Cancel)
               isConnected = true
               queue = null // gc relief
+
+            case _ =>
           }
 
           def onNext(elem: T): Future[Ack] = {

@@ -16,12 +16,12 @@ lazy val doNotPublishArtifact = Seq(
 
 lazy val sharedSettings = Seq(
   organization := "org.monifu",
-  scalaVersion := "2.11.7",
-  crossScalaVersions := Seq("2.10.6", "2.11.7"),
-  javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
+  scalaVersion := "2.12.0-M3",
+  crossScalaVersions := Seq("2.10.6", "2.11.7", "2.12.0-M3"),
+  javacOptions ++= Seq("-source", "1.8", "-target", "1.8"),
   scalacOptions ++= Seq(
-    "-target:jvm-1.6", // generates code with the Java 6 class format
-    "-optimise", // enables optimisations
+    "-target:jvm-1.8", // generates code with the Java 6 class format
+//    "-optimise", // enables optimisations
     // warnings
     "-unchecked", // able additional warnings where generated code depends on assumptions
     "-deprecation", // emit warning for usages of deprecated APIs
@@ -172,7 +172,7 @@ lazy val docsSettings =
   site.addMappingsToSiteDir(tut, "_tut") ++
   Seq(
     (test in Test) <<= (test in Test).dependsOn(tut),
-    coverageExcludedFiles := ".*",
+    //coverageExcludedFiles := ".*",
     siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
     includeFilter in makeSite :=
       "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
@@ -193,12 +193,12 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
-  libraryDependencies += "io.monix" %%% "minitest" % "0.16" % "test"
+  libraryDependencies += "io.monix" %%% "minitest" % "0.17-SNAPSHOT" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
-  scalaJSUseRhino in Global := false,
-  coverageExcludedFiles := ".*"
+  scalaJSUseRhino in Global := false//,
+//  coverageExcludedFiles := ".*"
 )
 
 lazy val scalaStyleSettings = {
@@ -226,7 +226,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.8"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.9-SNAPSHOT"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -237,7 +237,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.8"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.9-SNAPSHOT"
   )
 
 lazy val coreJVM = project.in(file("monix-core/jvm"))
@@ -272,7 +272,7 @@ lazy val tckTests = project.in(file("tckTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
-      "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+      "org.scalatest" %% "scalatest" % "3.0.0-M12" % "test"
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))

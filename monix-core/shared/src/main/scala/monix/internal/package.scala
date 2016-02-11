@@ -221,16 +221,21 @@ package object internal {
             }
           }
         case async =>
-          async.onSuccess {
-            case Continue =>
-              try {
-                observer.onNext(lastElem)
-                observer.onComplete()
-              }
-              catch {
-                case NonFatal(err) =>
-                  observer.onError(err)
-              }
+          async.onComplete {
+            case Success(Continue) =>
+                try {
+                  observer.onNext(lastElem)
+                  observer.onComplete()
+                }
+                catch {
+                  case NonFatal(err) =>
+                    observer.onError(err)
+                }
+
+            case Success(Cancel) =>
+
+            case Failure(err) =>
+
           }
       }
 

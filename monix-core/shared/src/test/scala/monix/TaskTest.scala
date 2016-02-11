@@ -171,8 +171,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     val task = Task(1)
     var received = 0
 
-    task.runAsync.onSuccess {
-      case r => received = r
+    task.runAsync.onComplete {
+      case Success(r) => received = r
+      case _ =>
     }
 
     s.tick()
@@ -184,8 +185,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     val task = Task(throw ex)
     var received: Throwable = null
 
-    task.runAsync.onFailure {
-      case error => received = error
+    task.runAsync.onComplete {
+      case Failure(error) => received = error
+      case _ =>
     }
 
     s.tick()
@@ -251,8 +253,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     var received: Throwable = null
     val task = Task[Int](throw ex).map(_ * 2)
 
-    task.runAsync.onFailure {
-      case error => received = error
+    task.runAsync.onComplete {
+      case Failure(error) => received = error
+      case _ =>
     }
 
     s.tick()
@@ -265,8 +268,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     var received: Throwable = null
     val task = Task(1).map(x => throw ex)
 
-    task.runAsync.onFailure {
-      case error => received = error
+    task.runAsync.onComplete {
+      case Failure(error) => received = error
+      case _ =>
     }
 
     s.tick()
@@ -344,8 +348,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     val task = Task[Int](throw ex)
       .flatMap(x => Task.now(x * 2))
 
-    task.runAsync.onFailure {
-      case error => received = error
+    task.runAsync.onComplete {
+      case Failure(error) => received = error
+      case _ =>
     }
 
     s.tick()
@@ -358,8 +363,9 @@ object TaskTest extends TestSuite[TestScheduler] {
     var received: Throwable = null
     val task = Task(1).flatMap(x => throw ex)
 
-    task.runAsync.onFailure {
-      case error => received = error
+    task.runAsync.onComplete {
+      case Failure(error) => received = error
+      case _ =>
     }
 
     s.tick()

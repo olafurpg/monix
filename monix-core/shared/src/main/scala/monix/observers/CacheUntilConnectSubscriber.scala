@@ -22,6 +22,7 @@ import monix.Ack.{Cancel, Continue}
 import monix.internal._
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
+import scala.util.{Success, Failure}
 
 /** Wraps an `underlying` [[Subscriber]] into an implementation that caches
   * all events until the call to `connect()` happens. After being connected,
@@ -67,17 +68,19 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
       Observable.fromIterable(queue).unsafeSubscribeFn(new Observer[T] {
         private[this] val bufferWasDrained = Promise[Ack]()
 
-        bufferWasDrained.future.onSuccess {
-          case Continue =>
+        bufferWasDrained.future.onComplete {
+          case Success(Continue) =>
             connectedPromise.success(Continue)
             isConnected = true
             queue = null // gc relief
 
-          case Cancel =>
+          case Success(Cancel) =>
             wasCanceled = true
             connectedPromise.success(Cancel)
             isConnected = true
             queue = null // gc relief
+
+          case _ =>
         }
 
         def onNext(elem: T): Future[Ack] = {
