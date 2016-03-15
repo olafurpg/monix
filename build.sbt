@@ -140,7 +140,7 @@ lazy val scalaMacroDependencies = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, tasksJVM, streamsJVM),
+    inProjects(executionJVM, tasksJVM, streamsJVM, catsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -183,7 +183,7 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
-  libraryDependencies += "io.monix" %%% "minitest" % "0.16" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.18" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -206,6 +206,7 @@ lazy val monix = project.in(file("."))
     executionJVM, executionJS,
     tasksJVM, tasksJS,
     streamsJVM, streamsJS,
+    catsJVM, catsJS,
     docs, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
@@ -262,8 +263,27 @@ lazy val streamsJS = project.in(file("monix-streams/js"))
   .settings(streamsCommon)
   .settings(scalaJSSettings)
 
-lazy val docs = project.in(file("docs"))
+lazy val catsCommon =
+  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
+    name := "monix-cats",
+    libraryDependencies ++= Seq(
+      "com.github.mpilquist" %%% "simulacrum" % "0.7.0",
+      "org.typelevel" %% "cats" % "0.4.1"
+    )
+  )
+
+lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .dependsOn(executionJVM, tasksJVM, streamsJVM)
+  .settings(catsCommon)
+
+lazy val catsJS = project.in(file("monix-cats/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(executionJS, tasksJS, streamsJS)
+  .settings(catsCommon)
+  .settings(scalaJSSettings)
+
+lazy val docs = project.in(file("docs"))
+  .dependsOn(executionJVM, tasksJVM, streamsJVM, catsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)
@@ -281,7 +301,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(streamsJVM)
+  .dependsOn(catsJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)

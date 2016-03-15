@@ -69,7 +69,7 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def toList[T](o: Observable[T])(implicit s: Scheduler) = {
-    o.foldLeft(Vector.empty[T])(_ :+ _).asFuture
+    o.foldLeftF(Vector.empty[T])(_ :+ _).asFuture
       .map(_.getOrElse(Vector.empty))
   }
 

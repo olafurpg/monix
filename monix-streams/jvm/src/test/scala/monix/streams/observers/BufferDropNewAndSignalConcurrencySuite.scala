@@ -50,7 +50,7 @@ object BufferDropNewAndSignalConcurrencySuite
     val source = Observable.repeat(1L).take(num)
     val f = Observable.from(Seq(source, source, source))
       .mergeMap(x => x)(DropNewAndSignal(1000, dropped => dropped))
-      .sum
+      .sumF
       .asFuture
 
     val result = Await.result(f, 30.seconds)

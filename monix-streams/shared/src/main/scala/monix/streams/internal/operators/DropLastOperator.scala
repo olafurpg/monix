@@ -18,42 +18,39 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.Observable
+import monix.execution.Ack.Continue
 import monix.streams.ObservableLike.Operator
-import monix.streams.observers.{Subscriber, SyncSubscriber}
+import monix.streams.observers.Subscriber
+
 import scala.collection.mutable
+import scala.concurrent.Future
 
-private[streams] final class TakeRightOperator[A](n: Int)
-  extends Operator[A, A] {
-
+private[streams] final
+class DropLastOperator[A](n: Long) extends Operator[A,A] {
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new SyncSubscriber[A] {
+    new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] val queue = mutable.Queue.empty[A]
-      private[this] var queued = 0
+      private[this] var queue = mutable.Queue.empty[A]
+      private[this] var length = 0
 
-      def onNext(elem: A): Ack = {
-        if (n <= 0)
-          Cancel
-        else if (queued < n) {
-          queue.enqueue(elem)
-          queued += 1
-          Continue
-        }
+      override def onNext(elem: A): Future[Ack] = {
+        queue.enqueue(elem)
+        if (length >= n)
+          out.onNext(queue.dequeue())
         else {
-          queue.enqueue(elem)
-          queue.dequeue()
+          length += 1
           Continue
         }
-      }
-
-      def onComplete(): Unit = {
-        Observable.from(queue).unsafeSubscribeFn(out)
       }
 
       def onError(ex: Throwable): Unit = {
+        queue = null // GC purposes
         out.onError(ex)
+      }
+
+      def onComplete(): Unit = {
+        queue = null // GC purposes
+        out.onComplete()
       }
     }
 }

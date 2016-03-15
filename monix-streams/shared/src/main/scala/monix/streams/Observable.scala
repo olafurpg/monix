@@ -22,12 +22,12 @@ import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.internal.builders
+import monix.streams.internal.builders.{ConsObservable, DeferObservable}
 import monix.streams.observables._
 import monix.streams.observers._
 import monix.streams.subjects._
 import monix.tasks.Task
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.{higherKinds, implicitConversions}
@@ -112,7 +112,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
   /** Transforms the source using the given operator. */
-  override def lift[B](operator: Operator[A, B]): Observable[B] =
+  override def liftByOperator[B](operator: Operator[A, B]): Observable[B] =
     new Observable[B] {
       def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {
         val sb = operator(subscriber)
@@ -216,7 +216,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     * @param maxCapacity is the maximum buffer size after which old events
     *        start being dropped (according to what happens when using
     *        [[ReplaySubject.createWithSize ReplaySubject.createWithSize]])
-    *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
@@ -362,7 +361,13 @@ object Observable {
     * given factory on each subscription.
     */
   def defer[A, F[_] : CanObserve](factory: => F[A]): Observable[A] =
-    new builders.DeferObservable(factory)
+    new DeferObservable(factory)
+
+  /** Builds a new observable from a strict `head` and a lazily
+    * evaluated head.
+    */
+  def cons[A](head: A, tail: => Observable[A]): Observable[A] =
+    new ConsObservable[A](head, tail)
 
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) spaced by a given time interval. Starts from 0 with no
@@ -523,12 +528,27 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatest2]] for a more relaxed alternative that doesn't
+    * See [[combineLatestWith2]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    */
+  def zip2[A1,A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1,A2)] =
+    new builders.Zip2Observable[A1,A2,(A1,A2)](oa1,oa2)((a1,a2) => (a1,a2))
+
+  /** Creates a new observable from two observable sequences
+    * by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first items emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zip2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
+  def zipWith2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
     new builders.Zip2Observable[A1,A2,R](oa1,oa2)(f)
 
   /** Creates a new observable from three observable sequences
@@ -540,12 +560,27 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatest3]] for a more relaxed alternative that doesn't
+    * See [[combineLatestWith3]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    */
+  def zip3[A1,A2,A3](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3]): Observable[(A1,A2,A3)] =
+    new builders.Zip3Observable(oa1,oa2,oa3)((a1,a2,a3) => (a1,a2,a3))
+
+  /** Creates a new observable from three observable sequences
+    * by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first items emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith3]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zip3[A1,A2,A3,R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])
+  def zipWith3[A1,A2,A3,R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])
     (f: (A1,A2,A3) => R): Observable[R] =
     new builders.Zip3Observable(oa1,oa2,oa3)(f)
 
@@ -558,12 +593,28 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatest4]] for a more relaxed alternative that doesn't
+    * See [[combineLatestWith4]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    */
+  def zip4[A1,A2,A3,A4]
+    (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4]): Observable[(A1,A2,A3,A4)] =
+    new builders.Zip4Observable(oa1,oa2,oa3,oa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+
+  /** Creates a new observable from four observable sequences
+    * by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first items emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith4]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zip4[A1,A2,A3,A4,R]
+  def zipWith4[A1,A2,A3,A4,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4])
     (f: (A1,A2,A3,A4) => R): Observable[R] =
     new builders.Zip4Observable(oa1,oa2,oa3,oa4)(f)
@@ -577,12 +628,29 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatest5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    */
+  def zip5[A1,A2,A3,A4,A5](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa4: Observable[A4], oa5: Observable[A5]): Observable[(A1,A2,A3,A4,A5)] =
+    new builders.Zip5Observable(oa1,oa2,oa3,oa4,oa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+
+  /** Creates a new observable from five observable sequences
+    * by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first items emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zip5[A1,A2,A3,A4,A5,R]
+  def zipWith5[A1,A2,A3,A4,A5,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
      oa4: Observable[A4], oa5: Observable[A5])
     (f: (A1,A2,A3,A4,A5) => R): Observable[R] =
@@ -597,12 +665,29 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatest5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    */
+  def zip6[A1,A2,A3,A4,A5,A6](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6]): Observable[(A1,A2,A3,A4,A5,A6)] =
+    new builders.Zip6Observable(oa1,oa2,oa3,oa4,oa5,oa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+
+  /** Creates a new observable from five observable sequences
+    * by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first items emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zip6[A1,A2,A3,A4,A5,A6,R]
+  def zipWith6[A1,A2,A3,A4,A5,A6,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
      oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6])
     (f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
@@ -630,9 +715,21 @@ object Observable {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatest2[A1,A2,R](a1: Observable[A1], a2: Observable[A2])
+  def combineLatest2[A1,A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1, A2)] =
+    new builders.CombineLatest2Observable[A1,A2,(A1,A2)](oa1,oa2)((a1,a2) => (a1,a2))
+
+  /** Creates a combined observable from 2 source observables.
+    *
+    * This operator behaves in a similar way to [[zipWith2]],
+    * but while `zip` emits items only when all of the zipped source
+    * observables have emitted a previously unzipped item, `combine`
+    * emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    */
+  def combineLatestWith2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])
     (f: (A1,A2) => R): Observable[R] =
-    new builders.CombineLatest2Observable[A1,A2,R](a1,a2)(f)
+    new builders.CombineLatest2Observable[A1,A2,R](oa1,oa2)(f)
 
   /** Creates a combined observable from 3 source observables.
     *
@@ -643,7 +740,20 @@ object Observable {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatest3[A1,A2,A3,R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])
+  def combineLatest3[A1,A2,A3](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3]): Observable[(A1,A2,A3)] =
+    new builders.CombineLatest3Observable(oa1,oa2,oa3)((a1,a2,a3) => (a1,a2,a3))
+
+  /** Creates a combined observable from 3 source observables.
+    *
+    * This operator behaves in a similar way to [[zipWith3]],
+    * but while `zip` emits items only when all of the zipped source
+    * observables have emitted a previously unzipped item, `combine`
+    * emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    */
+  def combineLatestWith3[A1,A2,A3,R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])
     (f: (A1,A2,A3) => R): Observable[R] =
     new builders.CombineLatest3Observable[A1,A2,A3,R](a1,a2,a3)(f)
 
@@ -656,7 +766,21 @@ object Observable {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatest4[A1,A2,A3,A4,R]
+  def combineLatest4[A1,A2,A3,A4](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa4: Observable[A4]): Observable[(A1,A2,A3,A4)] =
+    new builders.CombineLatest4Observable(oa1,oa2,oa3,oa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+
+  /** Creates a combined observable from 4 source observables.
+    *
+    * This operator behaves in a similar way to [[zipWith4]],
+    * but while `zip` emits items only when all of the zipped source
+    * observables have emitted a previously unzipped item, `combine`
+    * emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    */
+  def combineLatestWith4[A1,A2,A3,A4,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4])
     (f: (A1,A2,A3,A4) => R): Observable[R] =
     new builders.CombineLatest4Observable[A1,A2,A3,A4,R](a1,a2,a3,a4)(f)
@@ -670,7 +794,21 @@ object Observable {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatest5[A1,A2,A3,A4,A5,R]
+  def combineLatest5[A1,A2,A3,A4,A5](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa4: Observable[A4], oa5: Observable[A5]): Observable[(A1,A2,A3,A4,A5)] =
+    new builders.CombineLatest5Observable(oa1,oa2,oa3,oa4,oa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+
+  /** Creates a combined observable from 5 source observables.
+    *
+    * This operator behaves in a similar way to [[zipWith5]],
+    * but while `zip` emits items only when all of the zipped source
+    * observables have emitted a previously unzipped item, `combine`
+    * emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    */
+  def combineLatestWith5[A1,A2,A3,A4,A5,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4], a5: Observable[A5])
     (f: (A1,A2,A3,A4,A5) => R): Observable[R] =
     new builders.CombineLatest5Observable[A1,A2,A3,A4,A5,R](a1,a2,a3,a4,a5)(f)
@@ -684,14 +822,28 @@ object Observable {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatest6[A1,A2,A3,A4,A5,A6,R]
+  def combineLatest6[A1,A2,A3,A4,A5,A6](
+    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6]): Observable[(A1,A2,A3,A4,A5,A6)] =
+    new builders.CombineLatest6Observable(oa1,oa2,oa3,oa4,oa5,oa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+
+  /** Creates a combined observable from 6 source observables.
+    *
+    * This operator behaves in a similar way to [[zipWith6]],
+    * but while `zip` emits items only when all of the zipped source
+    * observables have emitted a previously unzipped item, `combine`
+    * emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    */
+  def combineLatestWith6[A1,A2,A3,A4,A5,A6,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3],
      a4: Observable[A4], a5: Observable[A5], a6: Observable[A6])
     (f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
     new builders.CombineLatest6Observable[A1,A2,A3,A4,A5,A6,R](a1,a2,a3,a4,a5,a6)(f)
 
   /** Given an observable sequence, it combines them together
-    * (using [[combineLatest2 combineLatest]])
+    * (using [[combineLatestWith2 combineLatest]])
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
@@ -705,10 +857,10 @@ object Observable {
   }
 
   /** Given a list of source Observables, emits all of the items from
-    * the first of these Observables to emit an item and cancel the
-    * rest.
+    * the first of these Observables to emit an item or to complete,
+    * and cancel the rest.
     */
-  def amb[A](source: Observable[A]*): Observable[A] =
+  def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
 
   /** Implicit conversion from Observable to Publisher.

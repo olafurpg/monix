@@ -17,14 +17,12 @@
 
 package monix.streams
 
-import java.util.concurrent.Callable
 import monix.streams.internal.builders._
 import monix.tasks.Task
-import simulacrum.typeclass
 import org.reactivestreams.{Publisher => RPublisher}
+import simulacrum.typeclass
 import scala.concurrent.Future
-import scala.language.higherKinds
-import scala.language.implicitConversions
+import scala.language.{higherKinds, implicitConversions}
 
 @typeclass trait CanObserve[-F[_]] {
   def observable[A](fa: F[A]): Observable[A]
